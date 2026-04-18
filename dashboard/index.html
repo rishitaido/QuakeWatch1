@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuakeWatch - Live Earthquake Monitor</title>
+
+    <!-- Leaflet.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Our styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ── Alert Banner (top of screen) ──────────────────── -->
+    <div id="alert-banner" class="alert-banner hidden">
+        <div class="alert-banner-content">
+            <span class="alert-banner-icon">⚠️</span>
+            <span id="alert-banner-text">Alert text here</span>
+            <button id="alert-banner-close" class="alert-banner-close" onclick="dismissBanner()">✕</button>
+        </div>
+    </div>
+
+    <!-- ── Connection Status ─────────────────────────────── -->
+    <div id="connection-status" class="connection-status connected">
+        <span class="status-dot"></span>
+        <span id="connection-text">Connected</span>
+    </div>
+
+    <!-- ── Main Layout ───────────────────────────────────── -->
+    <div class="app-container">
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">🌍 QuakeWatch</h1>
+                <p class="tagline">Real-Time Earthquake Monitor</p>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">--</div>
+                    <div class="stat-label">Events (24h)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-max-mag">--</div>
+                    <div class="stat-label">Max Magnitude</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-max-impact">--</div>
+                    <div class="stat-label">Max Impact</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-alerts">--</div>
+                    <div class="stat-label">Alerts (24h)</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-section">
+                <h3 class="section-title">Filters</h3>
+
+                <div class="filter-group">
+                    <label for="filter-time">Time Window</label>
+                    <select id="filter-time">
+                        <option value="1">Last 1 hour</option>
+                        <option value="6" selected>Last 6 hours</option>
+                        <option value="24">Last 24 hours</option>
+                        <option value="72">Last 3 days</option>
+                        <option value="168">Last 7 days</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-mag">Min Magnitude: <span id="mag-display">0</span></label>
+                    <input type="range" id="filter-mag" min="0" max="8" step="0.5" value="0">
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-impact">Min Impact: <span id="impact-display">0</span></label>
+                    <input type="range" id="filter-impact" min="0" max="100" step="5" value="0">
+                </div>
+            </div>
+
+            <!-- Alert Log -->
+            <div class="alert-log-section">
+                <h3 class="section-title">Alert Log</h3>
+                <div id="alert-log" class="alert-log">
+                    <div class="alert-log-empty">No alerts yet</div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend-section">
+                <h3 class="section-title">Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="legend-dot high"></span> High Severity
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot medium"></span> Medium Severity
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot low"></span> Low Severity
+                    </div>
+                </div>
+                <p class="legend-note">Circle size = magnitude</p>
+            </div>
+
+            <!-- Footer -->
+            <div class="sidebar-footer">
+                <span id="last-updated">Last updated: --</span>
+            </div>
+        </aside>
+
+        <!-- Map -->
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- Leaflet.js -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Our app -->
+    <script src="app.js"></script>
+</body>
+</html>
