@@ -42,7 +42,7 @@ USGS GeoJSON Feed
 | `api` | Rishi | FastAPI — serves `/earthquakes`, `/alerts`, `/stats` |
 | `processor` | Asha | Consumes SQS messages, calculates Haversine impact scores, writes to DynamoDB |
 | `alert-evaluator` | Asha | Monitors earthquakes table, creates alert records for high/medium severity events |
-| `dashboard` | Haina | Nginx-served Leaflet map with real-time markers, sidebar, and filters |
+| `dashboard` | Hania | Nginx-served Leaflet map with real-time markers, sidebar, and filters |
 
 ---
 
