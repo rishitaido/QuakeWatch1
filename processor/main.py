@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import math
+import re
 import time
 import logging
 from decimal import Decimal
@@ -178,6 +179,73 @@ def calculate_impact_score(magnitude: float, lat: float, lon: float) -> dict:
     }
 
 
+def parse_place_reference(place: str) -> dict | None:
+    """
+    Parse USGS place strings like "166 km W of Abepura, Indonesia".
+    Returns locality name + distance when the pattern is present.
+    """
+    if not isinstance(place, str):
+        return None
+
+    normalized = " ".join(place.strip().split())
+    if not normalized:
+        return None
+
+    match = re.match(
+        r"^(?P<distance>\d+(?:\.\d+)?)\s*km\s+[A-Z]{1,3}\s+of\s+(?P<locality>.+)$",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+
+    locality_full = match.group("locality").strip(" -")
+    if not locality_full:
+        return None
+
+    locality_name = locality_full.split(",", 1)[0].strip() or locality_full
+    locality_country = ""
+    if "," in locality_full:
+        locality_country = locality_full.split(",", 1)[1].strip()
+
+    return {
+        "name": locality_name,
+        "country": locality_country,
+        "distance_km": float(match.group("distance")),
+    }
+
+
+def apply_place_reference_override(impact: dict, place: str) -> dict:
+    """
+    Prefer the feed's reference locality when it is clearly closer than the
+    nearest city found in our population dataset.
+    """
+    reference = parse_place_reference(place)
+    if not reference:
+        return impact
+
+    current_name = str(impact.get("nearest_city") or "Unknown")
+    try:
+        current_distance = float(impact.get("nearest_city_dist_km", -1))
+    except (TypeError, ValueError):
+        current_distance = -1
+
+    reference_distance = float(reference["distance_km"])
+    should_override = (
+        current_name == "Unknown"
+        or current_distance < 0
+        or (reference_distance + 25.0) < current_distance
+    )
+    if not should_override:
+        return impact
+
+    adjusted = dict(impact)
+    adjusted["nearest_city"] = reference["name"]
+    adjusted["nearest_city_country"] = reference["country"]
+    adjusted["nearest_city_dist_km"] = round(reference_distance, 1)
+    return adjusted
+
+
 def determine_severity(magnitude: float, impact_score: float) -> str:
     """
     Assign severity level based on magnitude and impact score thresholds.
@@ -246,6 +314,7 @@ def process_message(message: dict):
 
         # Calculate impact score
         impact = calculate_impact_score(magnitude, lat, lon)
+        impact = apply_place_reference_override(impact, body.get("place", ""))
         severity = determine_severity(magnitude, impact["impact_score"])
 
         # Write enriched event to DynamoDB

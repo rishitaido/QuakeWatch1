@@ -139,6 +139,52 @@ function getMarkerRadius(magnitude) {
 }
 
 /**
+ * Parse USGS place labels like "166 km W of Abepura, Indonesia".
+ */
+function parsePlaceReference(place) {
+    if (!place || typeof place !== "string") return null;
+
+    const normalized = place.trim().replace(/\s+/g, " ");
+    const match = normalized.match(
+        /^(\d+(?:\.\d+)?)\s*km\s+[A-Za-z]{1,3}\s+of\s+(.+)$/i
+    );
+    if (!match) return null;
+
+    const locality = match[2].trim();
+    const cityName = locality.split(",")[0].trim() || locality;
+
+    return {
+        name: cityName,
+        distanceKm: Number(match[1]),
+    };
+}
+
+/**
+ * Choose a user-facing nearest city label.
+ * Uses the feed's reference locality when it is clearly closer.
+ */
+function getDisplayNearestInfo(item) {
+    const placeRef = parsePlaceReference(item.place || "");
+    const fallbackName = item.nearest_city || "Unknown";
+    const fallbackDist = Number(item.nearest_city_dist_km);
+    const hasFallbackDist = Number.isFinite(fallbackDist) && fallbackDist >= 0;
+
+    if (
+        placeRef &&
+        (fallbackName === "Unknown" ||
+            !hasFallbackDist ||
+            placeRef.distanceKm + 25 < fallbackDist)
+    ) {
+        return placeRef;
+    }
+
+    return {
+        name: fallbackName,
+        distanceKm: hasFallbackDist ? fallbackDist : null,
+    };
+}
+
+/**
  * Build HTML popup content for an earthquake marker.
  */
 function buildPopupContent(quake) {
@@ -147,8 +193,11 @@ function buildPopupContent(quake) {
     const mag = Number(quake.magnitude || 0).toFixed(1);
     const depth = Number(quake.depth ?? quake.depth_km ?? 0).toFixed(1);
     const impact = Number(quake.impact_score || 0).toFixed(1);
-    const nearestCity = quake.nearest_city || "Unknown";
-    const cityDist = Number(quake.nearest_city_dist_km || 0).toFixed(0);
+    const nearestInfo = getDisplayNearestInfo(quake);
+    const nearestCityLabel =
+        nearestInfo.distanceKm == null
+            ? nearestInfo.name
+            : `${nearestInfo.name} (${nearestInfo.distanceKm.toFixed(0)} km)`;
 
     return `
         <div class="popup-title">${quake.place || "Unknown Location"}</div>
@@ -166,7 +215,7 @@ function buildPopupContent(quake) {
         </div>
         <div class="popup-row">
             <span class="popup-label">Nearest City</span>
-            <span class="popup-value">${nearestCity} (${cityDist} km)</span>
+            <span class="popup-value">${nearestCityLabel}</span>
         </div>
         <div class="popup-row">
             <span class="popup-label">Severity</span>
@@ -271,10 +320,11 @@ function updateAlertBanner(alerts) {
     const severity = (latest.severity || "medium").toLowerCase();
     const mag = parseFloat(latest.magnitude || 0).toFixed(1);
     const impact = parseFloat(latest.impact_score || 0).toFixed(0);
+    const nearestInfo = getDisplayNearestInfo(latest);
 
     banner.classList.remove("hidden", "high", "medium");
     banner.classList.add(severity);
-    bannerText.textContent = `${severity.toUpperCase()} ALERT: M${mag} earthquake near ${latest.place || "Unknown"} | Impact Score: ${impact}/100 | ${latest.nearest_city || ""}`;
+    bannerText.textContent = `${severity.toUpperCase()} ALERT: M${mag} earthquake near ${latest.place || "Unknown"} | Impact Score: ${impact}/100 | ${nearestInfo.name || "Unknown"}`;
     syncBannerOffset();
 }
 
@@ -382,6 +432,11 @@ function updateAlertLog(alerts) {
             const mag = parseFloat(alert.magnitude || 0).toFixed(1);
             const impact = parseFloat(alert.impact_score || 0).toFixed(0);
             const timeAgo = getTimeAgo(alert.timestamp || alert.created_at);
+            const nearestInfo = getDisplayNearestInfo(alert);
+            const nearestLabel =
+                nearestInfo.distanceKm == null
+                    ? nearestInfo.name
+                    : `${nearestInfo.name} (${nearestInfo.distanceKm.toFixed(0)} km)`;
 
             return `
                 <div class="alert-log-item ${severity}">
@@ -390,7 +445,7 @@ function updateAlertLog(alerts) {
                         M${mag} - ${alert.place || "Unknown"}
                     </div>
                     <div class="alert-details">
-                        Impact: ${impact}/100 | Near: ${alert.nearest_city || "Unknown"}
+                        Impact: ${impact}/100 | Near: ${nearestLabel}
                     </div>
                     <div class="alert-time">${timeAgo}</div>
                 </div>
